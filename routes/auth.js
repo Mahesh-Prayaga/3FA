@@ -1,29 +1,59 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
-const User = require("../models/User");
-
 const router = express.Router();
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
 
-// register user
+// POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: "username & password required" });
+    // check if user exists
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
     // hash password
-    const hashed = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // save user
-    const user = new User({ username, password: hashed });
-    await user.save();
+    // create user
+    const newUser = new User({
+      username,
+      password: hashedPassword,
+    });
 
-    res.json({ message: "user registered" });
+    await newUser.save();
+    res.json({ message: "User registered successfully" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "registration failed" });
+    res.status(500).json({ message: "Error registering user", error: err });
+  }
+});
+
+// POST /api/auth/login
+router.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // check user
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid username or password" });
+    }
+
+    // check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid username or password" });
+    }
+
+    // ✅ First factor passed
+    res.json({
+      message: "First factor success — proceed to OTP",
+      userId: user._id,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error logging in", error: err });
   }
 });
 

@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3000;
 
 // middleware
 app.use(express.json());
+app.use("/api/auth", require("./routes/auth"));
 
 // connect mongo
 connectDB();
